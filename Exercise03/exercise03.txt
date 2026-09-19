@@ -1,1 +1,58 @@
+Exercise 3 - #pragma omp master
 
+Environment: Ubuntu 24.04 VM (VirtualBox), gcc 13.3.0.
+Note: the sheet's code lacks the closing brace of the parallel region; it was
+added so the program compiles.
+
+  gcc -fopenmp exercise3.c -o exercise3
+  export OMP_NUM_THREADS=4
+  ./exercise3
+
+Output (4 threads):
+thread # 3
+Hi again from thread # 3
+thread # 2
+Hi again from thread # 2
+thread # 1
+Hi again from thread # 1
+thread # 0
+Inside Master # 0
+Exiting Master
+Hi again from thread # 0
+
+Output (2 threads):
+thread # 1
+thread # 0
+Inside Master # 0
+Exiting Master
+Hi again from thread # 0
+Hi again from thread # 1
+
+Output (8 threads):
+thread # 6
+Hi again from thread # 6
+thread # 5
+Hi again from thread # 5
+thread # 3
+thread # 0
+Inside Master # 0
+Exiting Master
+Hi again from thread # 0
+thread # 1
+Hi again from thread # 1
+thread # 2
+Hi again from thread # 3
+thread # 4
+Hi again from thread # 4
+Hi again from thread # 2
+thread # 7
+Hi again from thread # 7
+
+Explanation:
+`#pragma omp master` makes only the master thread (thread 0) execute the
+enclosed block. "Inside Master" and "Exiting Master" print exactly once and
+always with thread # 0, whatever the thread count. The other threads skip the
+block. Unlike `single`, master has NO implicit barrier at its end, so the
+other threads do not wait: in the 4-thread output, threads 3, 2 and 1 already
+printed "Hi again" before thread 0 had even entered the master block. Thread 0
+itself continues to "Hi again" after finishing the block.

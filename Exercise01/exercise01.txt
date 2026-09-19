@@ -1,0 +1,52 @@
+Exercise 1 - #pragma omp barrier
+
+Environment: Ubuntu 24.04 VM (VirtualBox), gcc 13.3.0. No qsub/cluster scheduler
+was available, so the program was compiled and run directly in the terminal:
+
+  gcc -fopenmp exercise1.c -o exercise1
+  export OMP_NUM_THREADS=8
+  ./exercise1
+
+Output (8 threads):
+thread # 4
+thread # 7
+thread # 6
+thread # 2
+thread # 0
+thread # 5
+thread # 1
+thread # 3
+Outside Barrier # 3
+Outside Barrier # 5
+Outside Barrier # 1
+Hi again from thread # 1
+Hi again from thread # 3
+Outside Barrier # 0
+Hi again from thread # 0
+Outside Barrier # 2
+Hi again from thread # 2
+Outside Barrier # 6
+Hi again from thread # 6
+Hi again from thread # 5
+Outside Barrier # 7
+Outside Barrier # 4
+Hi again from thread # 4
+Hi again from thread # 7
+
+Output (2 threads):
+thread # 0
+thread # 1
+Outside Barrier # 1
+Hi again from thread # 1
+Outside Barrier # 0
+Hi again from thread # 0
+
+Explanation:
+A barrier is a synchronization point. Every thread in the team must reach
+`#pragma omp barrier` before any thread is allowed to continue past it.
+Each thread first prints "thread # N". No thread can print "Outside Barrier"
+or "Hi again" until ALL threads have printed their "thread # N" line. In the
+output above, all "thread #" lines appear first, then the rest. The order
+within each phase is arbitrary because threads run concurrently and it changes
+from run to run. Without the barrier, a fast thread could print its later
+lines before slower threads print their first line, giving interleaved output.

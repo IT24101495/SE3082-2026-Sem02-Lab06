@@ -1,1 +1,47 @@
+Exercise 5 - Fibonacci using OpenMP tasks
 
+Environment: Ubuntu 24.04 VM (VirtualBox), gcc 13.3.0.
+
+  gcc -fopenmp -O2 exercise5.c -o ex5
+  OMP_NUM_THREADS=N ./ex5
+
+Run 2 (4 CPUs available, nproc = 4), fib(40) = 102334155 (results identical):
+
+Threads | Serial time (s) | Parallel time (s) | Speedup vs 1-thread parallel
+   1    |     1.236       |      1.276        |   1.00
+   2    |     1.954       |      0.875        |   1.46
+   4    |     1.537       |      0.306        |   4.17
+
+Run 1 (earlier, same program):
+   1    |     2.151       |      2.196
+   2    |     1.830       |      0.997
+   4    |     1.884       |      1.094
+   8    |     1.684       |      1.516
+
+Explanation:
+Fibonacci is recursive, so its work forms a tree that a simple `parallel for`
+cannot split. Tasks are used instead:
+- `#pragma omp parallel` creates the team of threads and `#pragma omp single`
+  lets only ONE thread start the recursion (otherwise every thread would
+  compute fib(n) separately).
+- Each `#pragma omp task` puts a recursive call (fib(n-1), fib(n-2)) into a
+  pool of tasks that any idle thread can pick up and execute.
+- `shared(i)`/`shared(j)` let the tasks write results back to the parent;
+  `firstprivate(n)` gives each task its own copy of n.
+- `#pragma omp taskwait` makes the parent wait for both child tasks before
+  computing i + j.
+- A cutoff (n < 20 runs serially) avoids the overhead of creating tasks for
+  tiny sub-problems, which would otherwise make the parallel version slower.
+
+Observations:
+With 1 thread the parallel version is about the same as serial (small task
+overhead). Time drops as threads increase, and with 4 threads (the 4 CPUs of
+the VM) the parallel version took 0.306 s, about 4x faster than the 1-thread
+parallel run, which is close to ideal for 4 cores. In the earlier run the
+4-thread result was much worse (1.094 s) and 8 threads (more threads than
+CPUs) was worse still (1.516 s): oversubscribing the CPUs does not help.
+The serial time for the same fib(40) varied between 1.24 s and 2.15 s across
+runs, showing that timings in a VM are noisy (host load, CPU frequency), so
+speedup is best judged against the 1-thread parallel time and by repeating the
+runs and taking the best time. Dividing by the noisy serial time would give a
+misleading "5x" speedup for 4 threads, which is more than the 4 cores allow.

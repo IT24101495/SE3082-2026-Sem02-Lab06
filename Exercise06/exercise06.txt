@@ -1,0 +1,39 @@
+Exercise 6 - Element-wise array multiplication with strip mining
+
+Environment: Ubuntu 24.04 VM (VirtualBox, 4 CPUs), gcc 13.3.0.
+N = 1,000,000 floats, STRIP = 16, time = average of 20 repetitions.
+
+  gcc -fopenmp -O2 -march=native exercise6.c -o ex6
+  OMP_NUM_THREADS=N ./ex6
+
+Results (results checked against the serial computation: MATCH in all runs):
+
+Threads | Serial (ms) | Parallel strip-mined (ms) | Speedup
+   1    |    5.020    |          3.581            |  1.40
+   2    |    5.370    |          3.986            |  1.35
+   4    |    5.265    |          6.007            |  0.88
+
+Approach:
+- Strip mining: the loop over N elements is split into an outer loop over
+  strips of STRIP = 16 elements (s += STRIP) and an inner loop over the
+  elements of one strip. The last strip is clipped with `end`, so N need not
+  be a multiple of the strip size.
+- Threads: `#pragma omp parallel for schedule(static)` on the strip loop
+  divides whole strips among the threads. 16 floats = 64 bytes = one cache
+  line, so different threads do not write to the same cache line (no false
+  sharing).
+- SIMD: `#pragma omp simd` on the inner strip loop asks the compiler to use
+  vector instructions. 16 floats is a multiple of the vector width (4 floats
+  for SSE, 8 for AVX2, 16 for AVX-512), so the strip fills whole vector
+  registers.
+
+Observations:
+The multiplication is memory-bound: each element needs 2 loads and 1 store
+(12 bytes) for a single multiply. Memory bandwidth, not CPU speed, limits the
+performance, so adding threads gives little or no gain. Each measured pass
+also takes only a few milliseconds, so the cost of starting/synchronising the
+thread team on every pass becomes significant; with 4 threads that overhead
+(plus VM noise) made the parallel version slower than serial (0.88x). The
+1-thread gain (1.40x) comes from the `simd` vectorisation of the strips, not
+from threads. Larger N or more work per element would show better thread
+scaling.

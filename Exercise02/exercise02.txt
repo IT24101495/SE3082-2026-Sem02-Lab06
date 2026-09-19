@@ -1,1 +1,57 @@
+Exercise 2 - #pragma omp single
 
+Environment: Ubuntu 24.04 VM (VirtualBox), gcc 13.3.0.
+
+  gcc -fopenmp exercise2.c -o exercise2
+  export OMP_NUM_THREADS=4
+  ./exercise2
+
+Output (4 threads):
+thread # 0
+Inside Single # 0
+Exiting Single
+thread # 3
+thread # 2
+thread # 1
+Hi again from thread # 1
+Hi again from thread # 3
+Hi again from thread # 0
+Hi again from thread # 2
+
+Output (2 threads):
+thread # 0
+Inside Single # 0
+Exiting Single
+thread # 1
+Hi again from thread # 1
+Hi again from thread # 0
+
+Output (8 threads):
+thread # 0
+Inside Single # 0
+Exiting Single
+thread # 6
+thread # 5
+thread # 7
+thread # 1
+thread # 3
+thread # 4
+thread # 2
+Hi again from thread # 0
+Hi again from thread # 3
+Hi again from thread # 5
+Hi again from thread # 7
+Hi again from thread # 2
+Hi again from thread # 4
+Hi again from thread # 1
+Hi again from thread # 6
+
+Explanation:
+`#pragma omp single` makes only ONE thread of the team execute the enclosed
+block. It is whichever thread arrives first, not necessarily thread 0 (here
+thread 0 happened to arrive first in every run). "Inside Single" and
+"Exiting Single" therefore print exactly once, regardless of the number of
+threads (2, 4 or 8). All other threads skip the block. There is an implicit
+barrier at the end of the single region, so threads wait there until the
+single block has finished, and only then do all threads print "Hi again"
+(once per thread). Adding `nowait` would remove that implicit barrier.

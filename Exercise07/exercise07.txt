@@ -1,0 +1,37 @@
+Exercise 7 - Area of the Mandelbrot set
+
+Environment: Ubuntu 24.04 VM (VirtualBox, 4 CPUs), gcc 13.3.0.
+NPOINTS = 1000, MAXITER = 2000.
+
+  gcc -fopenmp -O2 exercise7.c -o ex7 -lm
+  for n in 1 2 3 4; do OMP_NUM_THREADS=$n ./ex7; done
+
+Results:
+
+Threads | Area of Mandelbrot set        | Time (s) | Speedup vs 1 thread
+   1    | 1.51031250 +/- 0.00151031     |  6.388   |  1.00
+   2    | 1.51031250 +/- 0.00151031     |  5.642   |  1.13
+   3    | 1.51031250 +/- 0.00151031     |  4.418   |  1.45
+   4    | 1.51031250 +/- 0.00151031     |  3.488   |  1.83
+
+The area is identical for 1, 2, 3 and 4 threads, so the parallel version is
+correct.
+
+Parallelisation:
+- One parallel region is started BEFORE the main loop.
+- z, c and ztemp are declared inside the region, so they are private to each
+  thread. If they were shared, threads would overwrite each other's values.
+- The outer loop (i) is divided into equal blocks using the library routines
+  omp_get_thread_num() and omp_get_num_threads(); each thread handles
+  NPOINTS/nthreads rows (the last thread takes any remainder).
+- Each thread counts the points outside the set in its own local_outside and
+  adds it to the shared numoutside once at the end with `#pragma omp atomic`,
+  avoiding a race condition on numoutside.
+
+Observations:
+The speedup is well below the ideal (1.83x with 4 threads instead of 4x). The
+work per row is uneven: points inside the set need all 2000 iterations, while
+points outside escape after a few. The rows in the middle of the plane contain
+most of the set, so with a block split some threads get far more work than
+others and the fastest threads sit idle waiting for the slowest one (load
+imbalance). Timings on a VM are also noisy.
